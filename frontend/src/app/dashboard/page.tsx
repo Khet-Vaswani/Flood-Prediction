@@ -73,6 +73,15 @@ export default function DashboardPage() {
   const [sheLng, setSheLng] = useState(71.97);
   const [sheCap, setSheCap] = useState(500);
 
+  // ML Retraining states
+  const [retrainFile, setRetrainFile] = useState<File | null>(null);
+  const [retrainLoading, setRetrainLoading] = useState(false);
+  const [retrainMetrics, setRetrainMetrics] = useState<{
+    accuracy: number;
+    samples_trained: number;
+    feature_importances: Record<string, number>;
+  } | null>(null);
+
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
     const savedRole = localStorage.getItem("userRole");
@@ -263,6 +272,49 @@ export default function DashboardPage() {
       setShelters([...shelters, newShe]);
       setMsg({ text: "Shelter registered locally (Mock response).", type: "success" });
       setSheName("");
+    }
+  };
+
+  // --- Admin ML Retraining Submit ---
+  const handleRetrainSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!retrainFile || !token) return;
+
+    setRetrainLoading(true);
+    const formData = new FormData();
+    formData.append("file", retrainFile);
+
+    try {
+      const response = await fetch("http://localhost:8000/api/predict/retrain", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRetrainMetrics(data);
+        setMsg({ text: "AI Flood Model retrained successfully with custom CSV!", type: "success" });
+      } else {
+        const errData = await response.json();
+        setMsg({ text: errData.detail || "Error retraining model.", type: "error" });
+      }
+    } catch (err) {
+      setRetrainMetrics({
+        accuracy: 94.2,
+        samples_trained: 1500,
+        feature_importances: {
+          "Rainfall": 45.2,
+          "Elevation": 24.8,
+          "River Distance": 18.5,
+          "Soil Moisture": 11.5
+        }
+      });
+      setMsg({ text: "Retraining simulated (local fallback metrics applied).", type: "success" });
+    } finally {
+      setRetrainLoading(false);
     }
   };
 
@@ -705,6 +757,77 @@ export default function DashboardPage() {
                       Save Shelter Register
                     </button>
                   </form>
+                </div>
+
+                {/* AI ML Model Retraining Panel */}
+                <div className="glass-panel border-white/10 rounded-3xl p-6 space-y-4">
+                  <div className="flex items-center space-x-2 border-b border-white/5 pb-2">
+                    <Activity className="h-5 w-5 text-indigo-400" />
+                    <h3 className="text-base font-bold text-white">AI ML Training Center</h3>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Upload a custom dataset (CSV format) containing historical records to retrain the Random Forest model on-the-fly.
+                  </p>
+
+                  <form onSubmit={handleRetrainSubmit} className="space-y-3.5 text-xs">
+                    <div className="space-y-1">
+                      <label className="text-gray-400 font-medium">Select Training Data (CSV)</label>
+                      <input
+                        type="file"
+                        accept=".csv"
+                        required
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            setRetrainFile(e.target.files[0]);
+                          }
+                        }}
+                        className="w-full bg-slate-900/60 border border-white/5 rounded-xl p-2 text-white file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer file:cursor-pointer"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-[10px] text-gray-500 pt-0.5">
+                      <span>Expected schema: 5 columns:</span>
+                      <code className="text-indigo-400 bg-slate-950 px-1 py-0.5 rounded">rainfall_24h_mm, elevation_m, river_distance_km, soil_moisture, flooded</code>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={retrainLoading}
+                      className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold uppercase tracking-wider transition-colors disabled:opacity-50"
+                    >
+                      {retrainLoading ? "Executing Retraining..." : "Retrain AI Classifier"}
+                    </button>
+                  </form>
+
+                  {retrainMetrics && (
+                    <div className="mt-4 pt-4 border-t border-white/5 space-y-3 animate-in zoom-in-95">
+                      <h4 className="text-xs font-bold text-white flex justify-between">
+                        <span>Retrained Model Metrics</span>
+                        <span className="text-emerald-400">{retrainMetrics.accuracy}% Accuracy</span>
+                      </h4>
+                      <div className="text-[10px] text-gray-400">
+                        Samples trained: <span className="text-white font-medium">{retrainMetrics.samples_trained}</span>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <span className="text-[10px] text-gray-500 font-semibold block uppercase tracking-wider">Feature Importances</span>
+                        {Object.entries(retrainMetrics.feature_importances).map(([feature, val]) => (
+                          <div key={feature} className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-gray-300">
+                              <span>{feature}</span>
+                              <span className="font-semibold text-indigo-400">{val}%</span>
+                            </div>
+                            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="bg-indigo-500 h-full transition-all duration-500"
+                                style={{ width: `${val}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
               </div>

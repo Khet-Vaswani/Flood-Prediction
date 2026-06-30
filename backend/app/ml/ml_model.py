@@ -115,3 +115,33 @@ def predict_flood_risk(rainfall_24h_mm: float, elevation_m: float, river_distanc
         "rainfall_pattern": pattern,
         "mitigation_recommendation": rec
     }
+
+def retrain_model(df_custom: pd.DataFrame) -> dict:
+    """
+    Retrains the model with custom uploaded data.
+    """
+    required_cols = ['rainfall_24h_mm', 'elevation_m', 'river_distance_km', 'soil_moisture', 'flooded']
+    for col in required_cols:
+        if col not in df_custom.columns:
+            raise ValueError(f"Missing required column: {col}")
+            
+    X = df_custom[['rainfall_24h_mm', 'elevation_m', 'river_distance_km', 'soil_moisture']]
+    y = df_custom['flooded'].astype(int)
+    
+    model = RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42)
+    model.fit(X, y)
+    
+    accuracy = float(model.score(X, y))
+    importances = model.feature_importances_
+    features = ['Rainfall', 'Elevation', 'River Distance', 'Soil Moisture']
+    feature_importances = {features[i]: round(float(importances[i]) * 100, 2) for i in range(len(features))}
+    
+    os.makedirs(os.path.dirname(settings.MODEL_PATH), exist_ok=True)
+    joblib.dump(model, settings.MODEL_PATH)
+    
+    return {
+        "status": "success",
+        "accuracy": round(accuracy * 100, 2),
+        "samples_trained": len(df_custom),
+        "feature_importances": feature_importances
+    }

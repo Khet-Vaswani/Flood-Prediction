@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
     TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
     TWILIO_FROM_NUMBER: str = os.getenv("TWILIO_FROM_NUMBER", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     
     # Models
     MODEL_PATH: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "ml", "flood_model.joblib")

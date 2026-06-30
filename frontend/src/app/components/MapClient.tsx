@@ -223,6 +223,41 @@ export default function MapClient() {
 
     });
 
+    // 4. Draw Evacuation routes from high-severity reports to the nearest shelter
+    const reports = elements.filter(el => el.type === "report" && (el.severity === "high" || el.severity === "critical"));
+    const shelters = elements.filter(el => el.type === "shelter" && el.status !== "closed");
+
+    reports.forEach((rep) => {
+      if (shelters.length === 0) return;
+      
+      // Find nearest shelter
+      let nearestShelter = shelters[0];
+      let minDistance = Infinity;
+
+      shelters.forEach((shelter) => {
+        const dx = rep.latitude - shelter.latitude;
+        const dy = rep.longitude - shelter.longitude;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearestShelter = shelter;
+        }
+      });
+
+      // Draw dashed polyline route
+      L.polyline(
+        [[rep.latitude, rep.longitude], [nearestShelter.latitude, nearestShelter.longitude]],
+        {
+          color: "#2563eb", // blue-600
+          weight: 2.5,
+          opacity: 0.65,
+          dashArray: "6, 8"
+        }
+      )
+      .addTo(layerGroupRef.current!)
+      .bindPopup(`<strong>🏃 Safe Evacuation Route</strong><br/>Route to Safe Zone: ${nearestShelter.name}`);
+    });
+
   }, [elements, mapLoaded]);
 
   // Center Map on a Selected Element
